@@ -1,0 +1,5 @@
+profiles/
+_vinyzu*/
+__pycache__/
+*.pyc
+.venv/
