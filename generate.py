@@ -1,48 +1,27 @@
-"""Generate the clearcote-profile library from the public chrome-fingerprints dataset.
+"""Generate the curated clearcote-profile library.
 
-    pip install chrome-fingerprints
-    python generate.py                       # -> profiles/*.json  (every real-GPU capture)
-    python generate.py --samples 80 --out samples   # a small, GPU-diverse curated set
+The dataset->profile mapping is done by clearcote-browser's canonical converter
+(`convert_dataset`, installed via requirements.txt — this library does NOT fork it). This script
+adds the curation layer: quality filtering (real-GPU + plausible hardware) and GPU-diverse
+sampling, then writes the profiles.
 
-Each output file is a clearcote-profile usable directly:
-
-    # Python SDK
-    browser = clearcote.launch(fingerprint="user-1", fingerprint_profile="samples/vinyzu-00042.json")
-    # or the engine switch (the SDK gzip+base64-encodes it for you)
+    pip install -r requirements.txt
+    python generate.py                       # -> profiles/*.json   (all curated, ~8.5k)
+    python generate.py --samples 80 --out samples   # regenerate the curated sample set
 """
 import argparse
 import json
 import os
 import sys
 
-from convert import convert
-
 try:
-    from chrome_fingerprints import FingerprintGenerator
-    from chrome_fingerprints.fingerprints import index_fingerprint
+    from convert_dataset import convert, find_dataset, load_records, load_tables
 except ImportError:
-    raise SystemExit("This needs the dataset: pip install chrome-fingerprints")
+    raise SystemExit("Install deps first:  pip install -r requirements.txt")
 
-# GPU families used to spread a --samples selection across diverse hardware.
-_FAMILIES = ("RTX", "GTX", "GeForce", "NVIDIA", "Radeon", "AMD", "Arc", "Iris", "UHD", "Intel",
-             "Apple", "Adreno", "Mali", "Quadro")
+from curate import gpu_family, is_curated, normalize
 
-
-def all_records():
-    gen = FingerprintGenerator()
-    gen.fingerprint_loading_feature.result()  # block until the lzma dataset is loaded
-    for index, raw in enumerate(gen.fingerprints):
-        if not isinstance(raw["navigator"]["user_agent"], str):
-            index_fingerprint(raw)  # resolve interned string refs in place
-        yield index, raw
-
-
-def gpu_family(profile):
-    renderer = profile["webgl"]["webgl1"]["debug"]["UNMASKED_RENDERER_WEBGL"].lower()
-    for fam in _FAMILIES:
-        if fam.lower() in renderer:
-            return fam
-    return "other"
+ATTRIBUTION = "chrome-fingerprints (https://github.com/Vinyzu/chrome-fingerprints, GPL-3.0)"
 
 
 def main():
@@ -50,26 +29,33 @@ def main():
     parser.add_argument("--out", default="profiles", help="output directory")
     parser.add_argument("--samples", type=int, default=0,
                         help="if >0, write a GPU-diverse sample of N profiles instead of all")
+    parser.add_argument("--dataset", help="path to a chrome_fingerprints checkout (auto-detected if pip-installed)")
     args = parser.parse_args()
-    os.makedirs(args.out, exist_ok=True)
 
-    kept, skipped = 0, 0
-    by_family = {}
-    for index, raw in all_records():
+    pkg = find_dataset(args.dataset)
+    tables = load_tables(pkg)
+    records = load_records(pkg)
+    print("dataset: %s (%d records)" % (pkg, len(records)), file=sys.stderr)
+
+    os.makedirs(args.out, exist_ok=True)
+    kept, skipped, by_family = 0, 0, {}
+    for index, rec in enumerate(records):
         try:
-            profile = convert(raw, "vinyzu-%05d" % index)
-        except Exception as exc:  # noqa: BLE001 - keep generation going, but surface the cause
-            print("skip index %d: %s" % (index, exc), file=sys.stderr)
+            profile = convert(rec, tables)            # canonical mapping (clearcote-browser)
+        except Exception as exc:                       # noqa: BLE001 - keep going, surface the cause
+            print("skip %d: %s" % (index, exc), file=sys.stderr)
             skipped += 1
             continue
-        if profile is None:
+        if not is_curated(profile):                    # curation: real GPU + plausible hardware
             skipped += 1
             continue
+        normalize(profile)
+        profile["meta"]["id"] = "vinyzu-%05d" % index
+        profile["meta"]["source"] = ATTRIBUTION
         kept += 1
         by_family.setdefault(gpu_family(profile), []).append(profile)
 
     if args.samples > 0:
-        # round-robin across GPU families (most-common first) for a diverse sample
         selected, families = [], sorted(by_family, key=lambda k: -len(by_family[k]))
         while len(selected) < args.samples and any(by_family.values()):
             progressed = False
@@ -88,10 +74,10 @@ def main():
     for profile in to_write:
         path = os.path.join(args.out, "%s.json" % profile["meta"]["id"])
         with open(path, "w", encoding="utf-8") as handle:
-            json.dump(profile, handle, indent=1)
+            json.dump(profile, handle, indent=1, ensure_ascii=False)
 
-    print("kept=%d  skipped(non-real-GPU/err)=%d  written=%d -> %s/" % (kept, skipped, len(to_write), args.out))
-    print("GPU families:", {k: len(v) for k, v in sorted(by_family.items(), key=lambda kv: -len(kv[1]))})
+    print("kept=%d  skipped=%d  written=%d -> %s/" % (kept, skipped, len(to_write), args.out), file=sys.stderr)
+    print("GPU families:", {k: len(v) for k, v in sorted(by_family.items(), key=lambda kv: -len(kv[1]))}, file=sys.stderr)
 
 
 if __name__ == "__main__":

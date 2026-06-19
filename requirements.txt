@@ -1,1 +1,7 @@
+# The 10k real-Windows-Chrome dataset (Vinyzu, GPL-3.0) — provides the records + interning tables.
 chrome-fingerprints
+
+# The canonical dataset->clearcote-profile converter, consumed straight from the clearcote-browser
+# repo (single source of truth — this library does NOT fork the mapping). Pinned to a commit for
+# reproducibility; bump the SHA to track a newer converter.
+clearcote-fingerprint @ git+https://github.com/clearcotelabs/clearcote-browser@a665f1bc11cb185b1d5a31ce88bdb60d0100b76f#subdirectory=tools/fingerprint-collect

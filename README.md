@@ -42,22 +42,32 @@ desktop GPUs are kept (~9k of the 10k).
 ## Generate the full library
 
 ```bash
-pip install chrome-fingerprints      # the dataset (Vinyzu, GPL-3.0)
-python generate.py                   # -> profiles/*.json   (~9k real-GPU profiles)
+pip install -r requirements.txt      # the dataset + clearcote-browser's canonical converter
+python generate.py                   # -> profiles/*.json   (~8.5k curated real-GPU profiles)
 python generate.py --samples 80 --out samples   # regenerate the curated sample set
 ```
 
-`profiles/` is git-ignored (it's large and fully regenerable); commit only `samples/`.
+`profiles/` is git-ignored (large + fully regenerable); commit only `samples/`.
+
+## How it connects to clearcote-browser
+
+The dataset→profile **mapping is not forked here** — it lives in clearcote-browser at
+[`tools/fingerprint-collect/convert_dataset.py`](https://github.com/clearcotelabs/clearcote-browser/tree/main/tools/fingerprint-collect)
+(the single source of truth, kept in sync with the engine's profile reader). This repo installs it
+as a **pinned dependency** (`requirements.txt`, via `pip install … git+…#subdirectory=…`) and adds
+only its **curation** on top. Bump the pinned commit to track a newer converter.
 
 ## Files
 
-- **`convert.py`** — `convert(record, id)` maps one resolved chrome-fingerprints record to a
-  clearcote-profile (the field map + the real-GPU filter). Importable as a library.
-- **`generate.py`** — iterates the dataset, converts, and writes the profiles (all, or a
-  GPU-diverse `--samples` set).
-- **`samples/`** — curated ready-to-use profiles.
+- **`requirements.txt`** — the dataset (`chrome-fingerprints`) + the canonical converter
+  (`clearcote-fingerprint`, pinned from the browser repo's subdirectory).
+- **`curate.py`** — the library's quality opinion: `is_real_gpu` + `is_plausible` filters,
+  `gpu_family` bucketing, and small engine-readiness fix-ups.
+- **`generate.py`** — runs the canonical converter over the dataset, applies curation, and writes
+  the profiles (all, or a GPU-diverse `--samples` set).
+- **`samples/`** — 80 curated, validated, ready-to-use profiles.
 
-The profile schema (and a collector to capture your *own* machine) lives in the browser repo under
+The profile schema (and a collector to capture your *own* machine) also live under
 [`tools/fingerprint-collect`](https://github.com/clearcotelabs/clearcote-browser/tree/main/tools/fingerprint-collect).
 
 ## Licence & attribution
