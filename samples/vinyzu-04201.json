@@ -4,7 +4,9 @@
   "source": "chrome-fingerprints (https://github.com/Vinyzu/chrome-fingerprints, GPL-3.0)",
   "captured_at": null,
   "chrome_version": null,
-  "id": "vinyzu-04201"
+  "id": "vinyzu-04201",
+  "gpu_vendor": "Intel",
+  "gpu_family": "Arc"
  },
  "hardware_concurrency": 12,
  "device_memory": 8,

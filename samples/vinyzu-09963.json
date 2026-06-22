@@ -4,7 +4,9 @@
   "source": "chrome-fingerprints (https://github.com/Vinyzu/chrome-fingerprints, GPL-3.0)",
   "captured_at": null,
   "chrome_version": null,
-  "id": "vinyzu-09963"
+  "id": "vinyzu-09963",
+  "gpu_vendor": "NVIDIA",
+  "gpu_family": "GTX"
  },
  "hardware_concurrency": 8,
  "device_memory": 8,

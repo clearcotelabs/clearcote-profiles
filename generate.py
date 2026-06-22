@@ -19,7 +19,7 @@ try:
 except ImportError:
     raise SystemExit("Install deps first:  pip install -r requirements.txt")
 
-from curate import gpu_family, is_curated, normalize
+from curate import gpu_family, gpu_vendor, is_curated, normalize, summary
 
 ATTRIBUTION = "chrome-fingerprints (https://github.com/Vinyzu/chrome-fingerprints, GPL-3.0)"
 
@@ -52,6 +52,8 @@ def main():
         normalize(profile)
         profile["meta"]["id"] = "vinyzu-%05d" % index
         profile["meta"]["source"] = ATTRIBUTION
+        profile["meta"]["gpu_vendor"] = gpu_vendor(profile)
+        profile["meta"]["gpu_family"] = gpu_family(profile)
         kept += 1
         by_family.setdefault(gpu_family(profile), []).append(profile)
 
@@ -76,8 +78,25 @@ def main():
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(profile, handle, indent=1, ensure_ascii=False)
 
+    write_index(args.out, to_write)
     print("kept=%d  skipped=%d  written=%d -> %s/" % (kept, skipped, len(to_write), args.out), file=sys.stderr)
     print("GPU families:", {k: len(v) for k, v in sorted(by_family.items(), key=lambda kv: -len(kv[1]))}, file=sys.stderr)
+
+
+def write_index(out_dir, profiles):
+    """Write index.json: a manifest of the written profiles so a consumer can pick one whose GPU
+    vendor/family matches the host. Grouped counts + one summary row per profile."""
+    by_vendor = {}
+    for profile in profiles:
+        by_vendor[gpu_vendor(profile)] = by_vendor.get(gpu_vendor(profile), 0) + 1
+    index = {
+        "count": len(profiles),
+        "source": ATTRIBUTION,
+        "by_vendor": dict(sorted(by_vendor.items(), key=lambda kv: -kv[1])),
+        "profiles": sorted((summary(p) for p in profiles), key=lambda s: (s["gpu_vendor"], s["id"])),
+    }
+    with open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8") as handle:
+        json.dump(index, handle, indent=1, ensure_ascii=False)
 
 
 if __name__ == "__main__":
