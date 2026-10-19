@@ -75,12 +75,13 @@ browser = clearcote.launch(
 )
 ```
 
-**2. Turn the farbling noise off for these sites.** The per-site canvas/WebGL/audio *noise* is an
-added perturbation layer on top of the real render; strict ML classifiers recognise that layer
-itself. With a coherent imported profile you don't need it — the profile already supplies the
-identity, and per-profile uniqueness still comes from the differing device characteristics. Set
-`fingerprint_noise=False` (`fingerprintNoise: false`). The noise stays on by default for sites that
-don't score it.
+**2. Keep the farbling noise off for these sites.** The per-site canvas/WebGL *noise* is an added
+perturbation layer on top of the real render; strict ML classifiers recognise that layer itself.
+With a coherent imported profile you don't need it — the profile already supplies the identity, and
+per-profile uniqueness still comes from the differing device characteristics. The noise only runs
+with a `fingerprint` seed, so a profile-only launch has none; `fingerprint_noise=False`
+(`fingerprintNoise: false`) keeps it off even if a seed reaches the launch some other way (a saved
+SDK profile, a wrapper). Seeded launches keep the noise by default for sites that don't score it.
 
 ## Generate the full library
 
