@@ -13,10 +13,16 @@ coherent, real-hardware personas without capturing your own.
 ```python
 import clearcote
 browser = clearcote.launch(
-    fingerprint="user-1",
     fingerprint_profile="samples/vinyzu-04201.json",   # an Intel Arc A770 desktop
+    fingerprint_noise=False,                           # see rule 2 below
 )
 ```
+
+Pass a profile **instead of** a `fingerprint` seed, not alongside one. A profile substitutes the
+*reported* values of one real machine; a seed is for per-account render separation (it drives the
+per-site canvas/WebGL noise). Together they score worse on strict tampering checkers: the noise layer
+reads as tampering next to a real machine's values, and the profile already supplies the identity.
+If you need different canvases per account, use a per-account seed and no profile (see [Profiles and persistence](https://www.clearcotelabs.com/docs/persistence)).
 
 `samples/` ships a small, GPU-diverse, validated set you can use immediately. Run the generator to
 produce the full library (see below).
@@ -64,8 +70,7 @@ index = json.load(open("samples/index.json"))
 pool = [p for p in index["profiles"] if p["gpu_vendor"] == "Intel"]   # match YOUR host GPU vendor
 choice = random.choice(pool)
 browser = clearcote.launch(
-    fingerprint="user-1",
-    fingerprint_profile=f"samples/{choice['id']}.json",
+    fingerprint_profile=f"samples/{choice['id']}.json",   # no fingerprint seed alongside it
     fingerprint_noise=False,            # see rule 2
 )
 ```
